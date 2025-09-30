@@ -55,6 +55,18 @@ export default function EventsHistory() {
         queryKey: ["queryEvents", packageId, "ArenaCompleted"],
         enabled: !!packageId,
       },
+      {
+        method: "queryEvents",
+        params: {
+          query: {
+            MoveEventType: `${packageId}::hero::HeroRenamed`,
+          },
+          limit: 20,
+          order: "descending",
+        },
+        queryKey: ["queryEvents", packageId, "HeroRenamed"],
+        enabled: !!packageId,
+      },
     ],
   });
 
@@ -63,6 +75,7 @@ export default function EventsHistory() {
     { data: boughtEvents, isPending: isBoughtPending },
     { data: battleCreatedEvents, isPending: isBattleCreatedPending },
     { data: battleCompletedEvents, isPending: isBattleCompletedPending },
+    { data: renamedEvents, isPending: isRenamedPending },
   ] = eventQueries;
 
   const formatTimestamp = (timestamp: string) => {
@@ -81,7 +94,8 @@ export default function EventsHistory() {
     isListedPending ||
     isBoughtPending ||
     isBattleCreatedPending ||
-    isBattleCompletedPending
+    isBattleCompletedPending ||
+    isRenamedPending
   ) {
     return (
       <Card>
@@ -106,6 +120,10 @@ export default function EventsHistory() {
     ...(battleCompletedEvents?.data || []).map((event) => ({
       ...event,
       type: "battle_completed" as const,
+    })),
+    ...(renamedEvents?.data || []).map((event) => ({
+      ...event,
+      type: "hero_renamed" as const,
     })),
   ].sort((a, b) => Number(b.timestampMs) - Number(a.timestampMs));
 
@@ -137,7 +155,9 @@ export default function EventsHistory() {
                             ? "green"
                             : event.type === "battle_created"
                               ? "orange"
-                              : "red"
+                              : event.type === "battle_completed"
+                                ? "red"
+                                : "purple"
                       }
                       size="2"
                     >
@@ -147,7 +167,9 @@ export default function EventsHistory() {
                           ? "Hero Bought"
                           : event.type === "battle_created"
                             ? "Arena Created"
-                            : "Battle Completed"}
+                            : event.type === "battle_completed"
+                              ? "Battle Completed"
+                              : "Hero Renamed"}
                     </Badge>
                     <Text size="3" color="gray">
                       {formatTimestamp(event.timestampMs!)}
@@ -214,6 +236,21 @@ export default function EventsHistory() {
                         <Text size="3">
                           <strong>💀 Loser:</strong> ...
                           {eventData.loser_hero_id.slice(-8)}
+                        </Text>
+                      </>
+                    )}
+
+                    {event.type === "hero_renamed" && (
+                      <>
+                        <Text size="3">
+                          <strong>✏️ Hero Renamed</strong>
+                        </Text>
+                        <Text
+                          size="3"
+                          color="gray"
+                          style={{ fontFamily: "monospace" }}
+                        >
+                          ID: {eventData.hero_id.slice(0, 8)}...
                         </Text>
                       </>
                     )}

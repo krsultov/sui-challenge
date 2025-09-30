@@ -1,6 +1,7 @@
 module challenge::hero;
 
 use std::string::String;
+use sui::event;
 
 // ========= STRUCTS =========
 public struct Hero has key, store {
@@ -15,20 +16,37 @@ public struct HeroMetadata has key, store {
     timestamp: u64,
 }
 
+// ========= EVENTS =========
+
+public struct HeroRenamed has copy, drop {
+    hero_id: ID,
+    timestamp: u64,
+}
+
 // ========= FUNCTIONS =========
 
 #[allow(lint(self_transfer))]
 public fun create_hero(name: String, image_url: String, power: u64, ctx: &mut TxContext) {
-    
-    // TODO: Create a new Hero struct with the given parameters
-        // Hints:
-        // Use object::new(ctx) to create a unique ID
-        // Set name, image_url, and power fields
-    // TODO: Transfer the hero to the transaction sender
-    // TODO: Create HeroMetadata and freeze it for tracking
-        // Hints:
-        // Use ctx.epoch_timestamp_ms() for timestamp
-    //TODO: Use transfer::freeze_object() to make metadata immutable
+    let hero = Hero {
+        id: object::new(ctx),
+        name,
+        image_url,
+        power,
+    };
+
+    transfer::transfer(hero, ctx.sender());
+
+    let metadata = HeroMetadata {
+        id: object::new(ctx),
+        timestamp: ctx.epoch_timestamp_ms(),
+    };
+
+    transfer::freeze_object(metadata);
+}
+
+public fun rename_hero(hero: &mut Hero, new_name: String, ctx: &mut TxContext) {
+    hero.name = new_name;
+    event::emit(HeroRenamed { hero_id: object::id(hero), timestamp: ctx.epoch_timestamp_ms() });
 }
 
 // ========= GETTER FUNCTIONS =========

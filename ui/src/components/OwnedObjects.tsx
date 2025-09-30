@@ -21,6 +21,7 @@ import { Hero } from "../types/hero";
 import { transferHero } from "../utility/helpers/transfer_hero";
 import { listHero } from "../utility/marketplace/list_hero";
 import { createArena } from "../utility/arena/create_arena";
+import { renameHero } from "../utility/heroes/rename_hero";
 import { RefreshProps } from "../types/props";
 
 export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
@@ -38,6 +39,8 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
   const [isCreatingBattle, setIsCreatingBattle] = useState<{
     [key: string]: boolean;
   }>({});
+  const [renameValue, setRenameValue] = useState<{ [key: string]: string }>({});
+  const [isRenaming, setIsRenaming] = useState<{ [key: string]: boolean }>({});
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>(
     {},
   );
@@ -157,6 +160,35 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
     );
   };
 
+  const handleRename = (heroId: string, newName: string) => {
+    if (!newName.trim() || !packageId) return;
+
+    setIsRenaming((prev) => ({ ...prev, [heroId]: true }));
+
+    const tx = renameHero(packageId, heroId, newName);
+    signAndExecute(
+      { transaction: tx },
+      {
+        onSuccess: async ({ digest }) => {
+          await suiClient.waitForTransaction({
+            digest,
+            options: {
+              showEffects: true,
+              showObjectChanges: true,
+            },
+          });
+
+          setRenameValue((prev) => ({ ...prev, [heroId]: "" }));
+          setRefreshKey(refreshKey + 1);
+          setIsRenaming((prev) => ({ ...prev, [heroId]: false }));
+        },
+        onError: () => {
+          setIsRenaming((prev) => ({ ...prev, [heroId]: false }));
+        },
+      },
+    );
+  };
+
   if (!account) {
     return (
       <Card>
@@ -251,6 +283,7 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
                       <Tabs.Trigger value="transfer">Transfer</Tabs.Trigger>
                       <Tabs.Trigger value="list">List for Sale</Tabs.Trigger>
                       <Tabs.Trigger value="battle">Battle</Tabs.Trigger>
+                      <Tabs.Trigger value="rename">Rename</Tabs.Trigger>
                     </Tabs.List>
 
                     <Tabs.Content value="transfer">
@@ -324,6 +357,29 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
                           {isCreatingBattle[heroId]
                             ? "Creating Arena..."
                             : "Create Arena"}
+                        </Button>
+                      </Flex>
+                    </Tabs.Content>
+
+                    <Tabs.Content value="rename">
+                      <Flex direction="column" gap="2" mt="3">
+                        <TextField.Root
+                          placeholder="New hero name"
+                          value={renameValue[heroId] || ""}
+                          onChange={(e) =>
+                            setRenameValue((prev) => ({
+                              ...prev,
+                              [heroId]: e.target.value,
+                            }))
+                          }
+                        />
+                        <Button
+                          onClick={() => handleRename(heroId, renameValue[heroId])}
+                          disabled={!renameValue[heroId]?.trim() || isRenaming[heroId]}
+                          loading={isRenaming[heroId]}
+                          color="purple"
+                        >
+                          {isRenaming[heroId] ? "Renaming..." : "Rename Hero"}
                         </Button>
                       </Flex>
                     </Tabs.Content>
